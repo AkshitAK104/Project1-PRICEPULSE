@@ -1,24 +1,6 @@
 import React, { useState } from "react";
 import "../App.css";
 
-// Mock function; replace with backend API call later
-const fetchProductDetails = async (url) => {
-  return {
-    id: Date.now(),
-    name: "Sample Amazon Product",
-    url,
-    image: "https://m.media-amazon.com/images/I/71bhWgQK-cL._AC_SX679_.jpg",
-    currentPrice: Math.floor(Math.random() * 100) + 100,
-    priceHistory: [
-      { date: "2025-05-17", price: 200 },
-      { date: "2025-05-18", price: 195 },
-      { date: "2025-05-19", price: 190 },
-      { date: "2025-05-20", price: 185 },
-    ],
-    alert: null,
-  };
-};
-
 export default function ProductInput({ onAdd }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,8 +8,28 @@ export default function ProductInput({ onAdd }) {
   const handleAdd = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const product = await fetchProductDetails(url);
-    onAdd(product);
+
+    try {
+      const response = await fetch("http://localhost:5000/track-product", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        onAdd(data.product);
+      } else {
+        alert("Failed to fetch product. Try another URL.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Server error. Please make sure the backend is running.");
+    }
+
     setUrl("");
     setLoading(false);
   };

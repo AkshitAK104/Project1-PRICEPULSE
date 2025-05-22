@@ -1,23 +1,21 @@
-import React from "react";
-
-const trackedProducts = [
-  {
-    id: 1,
-    name: "Apple AirPods Pro",
-    url: "https://www.amazon.com/dp/B09JQMJHXY",
-    image: "https://m.media-amazon.com/images/I/71bhWgQK-cL._AC_SX679_.jpg",
-    currentPrice: 199,
-    alert: 180,
-    priceHistory: [
-      { date: "2025-05-17", price: 210 },
-      { date: "2025-05-18", price: 205 },
-      { date: "2025-05-19", price: 200 },
-      { date: "2025-05-20", price: 199 },
-    ],
-  },
-];
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 
 export default function TrackedProducts() {
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    axios.get("http://localhost:5000/products")
+      .then((res) => {
+        if (res.data.success) {
+          setProducts(res.data.products);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch tracked products:", err);
+      });
+  }, []);
+
   const styles = {
     container: {
       padding: "20px",
@@ -49,9 +47,6 @@ export default function TrackedProducts() {
       color: "#0073e6",
       textDecoration: "none",
     },
-    nameLinkHover: {
-      textDecoration: "underline",
-    },
     price: {
       margin: "8px 0",
     },
@@ -63,33 +58,45 @@ export default function TrackedProducts() {
   return (
     <div style={styles.container}>
       <h1 style={styles.heading}>🛒 Tracked Products</h1>
-      {trackedProducts.map((product) => (
-        <div key={product.id} style={styles.card}>
-          <img src={product.image} alt={product.name} style={styles.image} />
-          <div style={styles.info}>
-            <h2>
-              <a
-                href={product.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={styles.nameLink}
-              >
-                {product.name}
-              </a>
-            </h2>
-            <p style={styles.price}>Current Price: ${product.currentPrice}</p>
-            <p style={styles.price}>Alert Price: ${product.alert}</p>
-            <h4>Price History:</h4>
-            <ul style={styles.historyList}>
-              {product.priceHistory.map((entry, index) => (
-                <li key={index}>
-                  {entry.date}: ${entry.price}
-                </li>
-              ))}
-            </ul>
+      {products.length === 0 ? (
+        <p>No products tracked yet.</p>
+      ) : (
+        products.map((product) => (
+          <div key={product.id || product.url} style={styles.card}>
+            <img src={product.image} alt={product.name} style={styles.image} />
+            <div style={styles.info}>
+              <h2>
+                <a
+                  href={product.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={styles.nameLink}
+                >
+                  {product.name}
+                </a>
+              </h2>
+              <p style={styles.price}>
+                <strong>Current Price:</strong> ₹{parseFloat(product.currentPrice).toFixed(2)}
+              </p>
+              <p style={styles.price}>
+                <strong>Alert Price:</strong> {product.alert ?? "—"}
+              </p>
+              <h4>Price History:</h4>
+              {Array.isArray(product.priceHistory) && product.priceHistory.length > 0 ? (
+                <ul style={styles.historyList}>
+                  {product.priceHistory.map((entry, index) => (
+                    <li key={index}>
+                      {entry.date}: ₹{parseFloat(entry.price).toFixed(2)}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No price history available.</p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
