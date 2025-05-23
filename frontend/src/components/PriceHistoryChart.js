@@ -1,95 +1,186 @@
-import React from "react";
-import "../App.css";
+import React from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function PriceHistoryChart({ product }) {
-  if (!product) return <div>No product selected.</div>;
+  if (!product || !product.priceHistory || product.priceHistory.length === 0) {
+    return (
+      <div style={{ 
+        height: '400px', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        border: '1px solid #e5e7eb',
+        borderRadius: '8px',
+        backgroundColor: '#f9fafb'
+      }}>
+        <p style={{ color: '#6b7280', fontSize: '16px' }}>No price history available</p>
+      </div>
+    );
+  }
 
-  const data = product.priceHistory || [];
-  if (data.length === 0) return <div>No price history.</div>;
+  // Format data for the chart
+  const chartData = product.priceHistory.map((entry, index) => ({
+    index: index + 1,
+    price: parseFloat(entry.price) || 0,
+    date: entry.date ? new Date(entry.date).toLocaleDateString() : `Day ${index + 1}`,
+    timestamp: entry.timestamp || entry.date || Date.now()
+  }));
 
-  const prices = data.map(p => p.price);
-  const maxPrice = Math.max(...prices, 200);
-  const minPrice = Math.min(...prices, 0);
-  const chartHeight = 160;
-  const yScale = (price) =>
-    200 - ((price - minPrice) / (maxPrice - minPrice || 1)) * chartHeight;
+  // Calculate price range for better Y-axis scaling
+  const prices = chartData.map(d => d.price);
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const priceRange = maxPrice - minPrice;
+  const padding = priceRange * 0.1; // 10% padding
+  
+  const yAxisMin = Math.max(0, minPrice - padding);
+  const yAxisMax = maxPrice + padding;
 
-  const chartWidth = 50 + data.length * 80; // Dynamic width based on data points
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div style={{
+          backgroundColor: 'white',
+          padding: '12px',
+          border: '1px solid #e5e7eb',
+          borderRadius: '6px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        }}>
+          <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>
+            ₹{data.price.toFixed(2)}
+          </p>
+          <p style={{ margin: '0', color: '#6b7280', fontSize: '12px' }}>
+            {data.date}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div style={{ width: "100%", overflowX: "auto", minHeight: "260px" }}>
-      <svg width={chartWidth} height="230">
-        {/* Axes */}
-        <line x1="50" y1="200" x2={chartWidth - 10} y2="200" stroke="#ccc" strokeWidth="2" />
-        <line x1="50" y1="200" x2="50" y2="40" stroke="#ccc" strokeWidth="2" />
+    <div style={{ 
+      width: '100%', 
+      height: '400px',
+      padding: '20px',
+      backgroundColor: 'white',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+    }}>
+      <div style={{ 
+        marginBottom: '16px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h3 style={{ 
+          margin: 0, 
+          fontSize: '18px', 
+          fontWeight: '600',
+          color: '#374151'
+        }}>
+          Price History
+        </h3>
+        <div style={{ 
+          fontSize: '14px', 
+          color: '#6b7280' 
+        }}>
+          {chartData.length} data points
+        </div>
+      </div>
+      
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={chartData}
+          margin={{
+            top: 20,
+            right: 30,
+            left: 20,
+            bottom: 60
+          }}
+        >
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            stroke="#f3f4f6"
+            horizontal={true}
+            vertical={false}
+          />
+          <XAxis 
+            dataKey="date"
+            tick={{ fontSize: 12, fill: '#6b7280' }}
+            tickLine={{ stroke: '#d1d5db' }}
+            axisLine={{ stroke: '#d1d5db' }}
+            angle={-45}
+            textAnchor="end"
+            height={60}
+            interval={Math.max(0, Math.floor(chartData.length / 8))} // Show max 8 labels
+          />
+          <YAxis 
+            domain={[yAxisMin, yAxisMax]}
+            tick={{ fontSize: 12, fill: '#6b7280' }}
+            tickLine={{ stroke: '#d1d5db' }}
+            axisLine={{ stroke: '#d1d5db' }}
+            tickFormatter={(value) => `₹${value.toFixed(0)}`}
+            width={80}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Line 
+            type="monotone" 
+            dataKey="price" 
+            stroke="#2563eb" 
+            strokeWidth={3}
+            dot={{ 
+              fill: '#2563eb', 
+              strokeWidth: 2, 
+              stroke: '#ffffff',
+              r: 5
+            }}
+            activeDot={{ 
+              r: 7, 
+              stroke: '#2563eb',
+              strokeWidth: 3,
+              fill: '#ffffff'
+            }}
+            connectNulls={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
 
-        {/* Price Line */}
-        {data.length > 1 &&
-          data.map((point, idx) => {
-            if (idx === 0) return null;
-            const prev = data[idx - 1];
-            const x1 = 50 + (idx - 1) * 80;
-            const y1 = yScale(prev.price);
-            const x2 = 50 + idx * 80;
-            const y2 = yScale(point.price);
-            return (
-              <line
-                key={`line-${idx}`}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke="#6c2bd7"
-                strokeWidth="3"
-              />
-            );
-          })}
-
-        {/* Data Points & Labels */}
-        {data.map((point, idx) => {
-          const x = 50 + idx * 80;
-          const y = yScale(point.price);
-
-          const formattedDate = new Date(point.date).toLocaleString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            day: "2-digit",
-            month: "2-digit",
-            hour12: false,
-          }); // e.g., "22/05, 17:45"
-
-          return (
-            <g key={`point-${idx}`}>
-              <circle
-                cx={x}
-                cy={y}
-                r="6"
-                fill="#6c2bd7"
-                stroke="#fff"
-                strokeWidth="2"
-              />
-              <text
-                x={x}
-                y={y - 12}
-                fontSize="12"
-                textAnchor="middle"
-                fill="#333"
-              >
-                ₹{point.price}
-              </text>
-              <text
-                x={x}
-                y={215}
-                fontSize="11"
-                textAnchor="middle"
-                fill="#888"
-              >
-                {formattedDate}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+      {/* Price summary */}
+      <div style={{
+        marginTop: '16px',
+        display: 'flex',
+        gap: '20px',
+        fontSize: '14px',
+        color: '#6b7280'
+      }}>
+        <div>
+          <span style={{ fontWeight: '500' }}>Current: </span>
+          ₹{prices[prices.length - 1]?.toFixed(2) || '0.00'}
+        </div>
+        <div>
+          <span style={{ fontWeight: '500' }}>Lowest: </span>
+          ₹{minPrice.toFixed(2)}
+        </div>
+        <div>
+          <span style={{ fontWeight: '500' }}>Highest: </span>
+          ₹{maxPrice.toFixed(2)}
+        </div>
+        {prices.length > 1 && (
+          <div>
+            <span style={{ fontWeight: '500' }}>Change: </span>
+            <span style={{ 
+              color: prices[prices.length - 1] > prices[0] ? '#dc2626' : '#16a34a'
+            }}>
+              {prices[prices.length - 1] > prices[0] ? '+' : ''}
+              {((prices[prices.length - 1] - prices[0]) / prices[0] * 100).toFixed(1)}%
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
